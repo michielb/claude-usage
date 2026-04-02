@@ -15,15 +15,24 @@ final class UsageService {
         usage?.fiveHour?.utilization ?? 0
     }
 
-    var targetUtilization: Double {
+    var sevenDayUtilization: Double {
+        usage?.sevenDay?.utilization ?? 0
+    }
+
+    var fiveHourTarget: Double {
         guard let resetDate = usage?.fiveHour?.resetDate else { return 0 }
         let windowStart = resetDate.addingTimeInterval(-5 * 3600)
-        let windowEnd = resetDate
         let now = Date()
         let elapsed = now.timeIntervalSince(windowStart)
-        let total = windowEnd.timeIntervalSince(windowStart)
-        guard total > 0 else { return 0 }
-        return min(max(elapsed / total * 100, 0), 100)
+        return min(max(elapsed / (5 * 3600) * 100, 0), 100)
+    }
+
+    var sevenDayTarget: Double {
+        guard let resetDate = usage?.sevenDay?.resetDate else { return 0 }
+        let windowStart = resetDate.addingTimeInterval(-7 * 24 * 3600)
+        let now = Date()
+        let elapsed = now.timeIntervalSince(windowStart)
+        return min(max(elapsed / (7 * 24 * 3600) * 100, 0), 100)
     }
 
     var fiveHourResetString: String {

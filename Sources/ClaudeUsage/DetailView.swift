@@ -18,7 +18,7 @@ struct DetailView: View {
                 UsageTierView(
                     title: "5-Hour Window",
                     utilization: fiveHour.utilization,
-                    target: service.targetUtilization,
+                    target: service.fiveHourTarget,
                     resetString: service.fiveHourResetString
                 )
             }
@@ -28,7 +28,7 @@ struct DetailView: View {
                 UsageTierView(
                     title: "7-Day Usage",
                     utilization: sevenDay.utilization,
-                    target: nil,
+                    target: service.sevenDayTarget,
                     resetString: service.sevenDayResetString
                 )
             }
