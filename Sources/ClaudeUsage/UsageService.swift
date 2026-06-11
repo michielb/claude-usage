@@ -1,12 +1,23 @@
 import Foundation
 import AppKit
 
+enum ServiceState: Equatable {
+    case loading
+    case ready
+    case noSession
+    case noCredentials
+    case invalidCredentials
+    case networkError(String)
+    case httpError(Int)
+}
+
 @MainActor
 @Observable
 final class UsageService {
     var usage: UsageResponse?
     var lastError: String?
     var lastUpdated: Date?
+    var state: ServiceState = .loading
 
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
@@ -74,8 +85,26 @@ final class UsageService {
     }
 
     private func fetchUsage() async {
+        let token: String
         do {
-            let token = try getOAuthToken()
+            token = try getOAuthToken()
+        } catch let error as UsageError {
+            switch error {
+            case .noCredentials:
+                state = .noCredentials
+                lastError = error.localizedDescription
+            case .invalidCredentials:
+                state = .invalidCredentials
+                lastError = error.localizedDescription
+            }
+            return
+        } catch {
+            state = .networkError(error.localizedDescription)
+            lastError = error.localizedDescription
+            return
+        }
+
+        do {
             var request = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
@@ -84,15 +113,57 @@ final class UsageService {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                state = .httpError(httpResponse.statusCode)
                 lastError = "HTTP \(httpResponse.statusCode)"
                 return
             }
 
-            let decoded = try JSONDecoder().decode(UsageResponse.self, from: data)
-            usage = decoded
-            lastError = nil
-            lastUpdated = Date()
+            let decoded: UsageResponse
+            do {
+                decoded = try JSONDecoder().decode(UsageResponse.self, from: data)
+            } catch {
+                // Log the raw response so we can diagnose unexpected shapes
+                let raw = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+                print("[ClaudeUsage] Decode failed: \(error)")
+                print("[ClaudeUsage] Raw response: \(raw)")
+                // Decode failed on a 200 — likely a "no session" response shape
+                usage = nil
+                lastError = nil
+                lastUpdated = Date()
+                state = .noSession
+                return
+            }
+
+            // Determine if there's any active session data
+            let hasActiveSession: Bool = {
+                // Check if any tier has a reset date in the future
+                let tiers = [decoded.fiveHour, decoded.sevenDay, decoded.sevenDaySonnet, decoded.sevenDayOpus]
+                let now = Date()
+                for tier in tiers.compactMap({ $0 }) {
+                    if let resetDate = tier.resetDate, resetDate > now {
+                        return true
+                    }
+                    // If there's utilization > 0, treat as active even without a parseable reset date
+                    if tier.utilization > 0 {
+                        return true
+                    }
+                }
+                return false
+            }()
+
+            if hasActiveSession {
+                usage = decoded
+                lastError = nil
+                lastUpdated = Date()
+                state = .ready
+            } else {
+                usage = nil
+                lastError = nil
+                lastUpdated = Date()
+                state = .noSession
+            }
         } catch {
+            state = .networkError(error.localizedDescription)
             lastError = error.localizedDescription
         }
     }
@@ -128,8 +199,13 @@ final class UsageService {
         guard let date = date else { return "—" }
         let remaining = date.timeIntervalSince(Date())
         if remaining <= 0 { return "Now" }
-        let hours = Int(remaining) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
+        let totalMinutes = Int(remaining) / 60
+        let days = totalMinutes / 1440
+        let hours = (totalMinutes % 1440) / 60
+        let minutes = totalMinutes % 60
+        if days > 0 {
+            return "\(days)d \(hours)h"
+        }
         if hours > 0 {
             return "\(hours)h \(minutes)m"
         }
