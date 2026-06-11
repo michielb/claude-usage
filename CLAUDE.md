@@ -25,3 +25,11 @@ Mac menu bar app that tracks Claude API usage within the 5-hour rate limit windo
 swift build
 .build/debug/ClaudeUsage
 ```
+
+## Package for Distribution
+```sh
+bash scripts/build.sh <version>   # e.g. bash scripts/build.sh 1.0.6
+```
+This builds a universal binary (arm64 + x86_64), assembles the .app bundle, code-signs, creates a .pkg installer, notarizes with Apple, and staples. Output: `build/ClaudeUsage-<version>.pkg`
+
+Requires Developer ID certificates and notary credentials (see comments in `scripts/build.sh`).
