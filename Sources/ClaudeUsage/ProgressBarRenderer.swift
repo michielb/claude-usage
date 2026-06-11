@@ -76,7 +76,7 @@ enum ProgressBarRenderer {
                     let redWidth = barRect.width * CGFloat(util - tgt)
                     let redRect = NSRect(x: redX, y: barRect.minY, width: redWidth, height: barRect.height)
                     let redPath = NSBezierPath(roundedRect: redRect, xRadius: radius, yRadius: radius)
-                    NSColor.systemRed.setFill()
+                    NSColor(srgbRed: 0.824, green: 0.110, blue: 0.341, alpha: 1.0).setFill()
                     redPath.fill()
                 }
 
@@ -113,6 +113,27 @@ enum ProgressBarRenderer {
         }
 
         image.isTemplate = false
+        return image
+    }
+
+    static func renderCompact() -> NSImage {
+        let totalHeight: CGFloat = 18
+        let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let text = "C"
+        let textAttr: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor
+        ]
+        let textSize = (text as NSString).size(withAttributes: textAttr)
+        let width = textSize.width + 4
+
+        let image = NSImage(size: NSSize(width: width, height: totalHeight), flipped: false) { rect in
+            let x = (rect.width - textSize.width) / 2
+            let y = (rect.height - textSize.height) / 2
+            (text as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: textAttr)
+            return true
+        }
+        image.isTemplate = true
         return image
     }
 }
