@@ -58,11 +58,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
 
     private func handleStateChange() {
         switch sharedService.state {
-        case .noCredentials, .invalidCredentials:
+        case .needsSignIn, .authExpired:
             showOnboarding()
         case .ready:
             dismissOnboarding()
-        case .loading, .noSession, .networkError, .httpError:
+        case .loading, .noSession, .reconnecting:
             break
         }
     }

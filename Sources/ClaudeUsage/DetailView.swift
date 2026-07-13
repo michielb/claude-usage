@@ -9,8 +9,12 @@ struct DetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if service.state != .ready && service.state != .loading && service.state != .noSession {
-                errorBanner
+            if service.state == .needsSignIn || service.state == .authExpired {
+                problemBanner
+            } else if service.state == .reconnecting {
+                Label(service.lastError ?? "Reconnecting to Claude…", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if service.state == .noSession {
@@ -31,7 +35,8 @@ struct DetailView: View {
                     title: "5-Hour Window",
                     utilization: fiveHour.utilization,
                     target: service.fiveHourTarget,
-                    resetString: service.fiveHourResetString
+                    resetString: service.fiveHourResetString,
+                    aheadString: service.fiveHourAheadString
                 )
             }
 
@@ -41,7 +46,8 @@ struct DetailView: View {
                     title: "7-Day Usage",
                     utilization: sevenDay.utilization,
                     target: service.sevenDayTarget,
-                    resetString: service.sevenDayResetString
+                    resetString: service.sevenDayResetString,
+                    aheadString: service.sevenDayAheadString
                 )
             }
 
@@ -135,39 +141,23 @@ struct DetailView: View {
     }
 
     @ViewBuilder
-    private var errorBanner: some View {
+    private var problemBanner: some View {
         VStack(alignment: .leading, spacing: 4) {
             switch service.state {
-            case .noCredentials:
-                Label("No credentials found", systemImage: "key.slash")
+            case .needsSignIn:
+                Label("Not signed in", systemImage: "key.slash")
                     .font(.caption.bold())
                 Text("Run **claude** in Terminal to sign in")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            case .invalidCredentials:
-                Label("Invalid credentials", systemImage: "exclamationmark.triangle.fill")
+            case .authExpired:
+                Label("Session expired", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption.bold())
                     .foregroundStyle(.orange)
-                Text("Try signing out/in to Claude Code")
+                Text("Run **claude** in Terminal to sign in again")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            case .httpError(let code):
-                Label("HTTP \(code)", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption.bold())
-                    .foregroundStyle(.yellow)
-                if code == 401 {
-                    Text("Token expired — run **claude** to re-auth")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            case .networkError:
-                Label("Connection error", systemImage: "wifi.slash")
-                    .font(.caption.bold())
-                    .foregroundStyle(.orange)
-                Text("Check your internet connection")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            case .loading, .ready, .noSession:
+            default:
                 EmptyView()
             }
         }
@@ -179,6 +169,7 @@ struct UsageTierView: View {
     let utilization: Double
     let target: Double?
     let resetString: String?
+    var aheadString: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -230,9 +221,15 @@ struct UsageTierView: View {
             .padding(.vertical, 3) // room for marker to extend beyond bar
 
             if let resetString = resetString {
-                Text("Resets in \(resetString)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let aheadString = aheadString {
+                    (Text("Ahead by \(aheadString)").foregroundStyle(.primary)
+                        + Text(". Resets in \(resetString)").foregroundStyle(.secondary))
+                        .font(.caption)
+                } else {
+                    Text("Resets in \(resetString)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

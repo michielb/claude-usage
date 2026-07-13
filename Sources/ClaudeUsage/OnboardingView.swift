@@ -39,7 +39,7 @@ struct OnboardingView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
 
-            if service.state == .invalidCredentials {
+            if service.state == .authExpired {
                 Text("Credentials found but could not be read. Try signing out and back in to Claude Code.")
                     .font(.caption)
                     .foregroundStyle(.orange)
