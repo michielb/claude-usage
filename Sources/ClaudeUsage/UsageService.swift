@@ -10,6 +10,15 @@ enum ServiceState: Equatable {
     case reconnecting   // temporary hiccup (offline, server busy, throttled) — retrying quietly
 }
 
+/// A ready-to-render row for a model-scoped weekly limit (e.g. Fable).
+struct ModelLimitRow {
+    let title: String
+    let utilization: Double
+    let target: Double
+    let resetString: String
+    let aheadString: String?
+}
+
 @MainActor
 @Observable
 final class UsageService {
@@ -30,19 +39,31 @@ final class UsageService {
     }
 
     var fiveHourTarget: Double {
-        guard let resetDate = usage?.fiveHour?.resetDate else { return 0 }
-        let windowStart = resetDate.addingTimeInterval(-5 * 3600)
-        let now = Date()
-        let elapsed = now.timeIntervalSince(windowStart)
-        return min(max(elapsed / (5 * 3600) * 100, 0), 100)
+        paceTarget(resetDate: usage?.fiveHour?.resetDate, window: 5 * 3600)
     }
 
     var sevenDayTarget: Double {
-        guard let resetDate = usage?.sevenDay?.resetDate else { return 0 }
-        let windowStart = resetDate.addingTimeInterval(-7 * 24 * 3600)
-        let now = Date()
-        let elapsed = now.timeIntervalSince(windowStart)
-        return min(max(elapsed / (7 * 24 * 3600) * 100, 0), 100)
+        paceTarget(resetDate: usage?.sevenDay?.resetDate, window: 7 * 24 * 3600)
+    }
+
+    /// Model-scoped weekly limits (e.g. Fable), surfaced the same way as the
+    /// 7-day tier — with the same pace marker and "Ahead by" readout.
+    var modelLimitRows: [ModelLimitRow] {
+        let week: TimeInterval = 7 * 24 * 3600
+        return (usage?.limits ?? [])
+            .filter { $0.kind == "weekly_scoped" }
+            .compactMap { limit in
+                guard let percent = limit.percent else { return nil }
+                let target = paceTarget(resetDate: limit.resetDate, window: week)
+                let name = limit.scope?.model?.displayName ?? "Model"
+                return ModelLimitRow(
+                    title: "7-Day \(name)",
+                    utilization: percent,
+                    target: target,
+                    resetString: formatReset(limit.resetDate),
+                    aheadString: aheadString(utilization: percent, target: target, window: week)
+                )
+            }
     }
 
     var fiveHourResetString: String {
@@ -263,6 +284,15 @@ final class UsageService {
         }
 
         return token
+    }
+
+    /// Where the steady-pace line sits right now, as a 0–100 percentage of the
+    /// window elapsed. Shared by every windowed tier.
+    private func paceTarget(resetDate: Date?, window: TimeInterval) -> Double {
+        guard let resetDate = resetDate else { return 0 }
+        let windowStart = resetDate.addingTimeInterval(-window)
+        let elapsed = Date().timeIntervalSince(windowStart)
+        return min(max(elapsed / window * 100, 0), 100)
     }
 
     private func formatReset(_ date: Date?) -> String {

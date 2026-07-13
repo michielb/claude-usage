@@ -51,6 +51,17 @@ struct DetailView: View {
                 )
             }
 
+            ForEach(Array(service.modelLimitRows.enumerated()), id: \.offset) { _, row in
+                Divider()
+                UsageTierView(
+                    title: row.title,
+                    utilization: row.utilization,
+                    target: row.target,
+                    resetString: row.resetString,
+                    aheadString: row.aheadString
+                )
+            }
+
             if let sonnet = service.usage?.sevenDaySonnet {
                 UsageTierView(
                     title: "7-Day Sonnet",
