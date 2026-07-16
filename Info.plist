@@ -6,6 +6,8 @@
     <string>ClaudeUsage</string>
     <key>CFBundleIdentifier</key>
     <string>com.michielb.claude-usage</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
     <key>CFBundleName</key>
     <string>ClaudeUsage</string>
     <key>CFBundleVersion</key>

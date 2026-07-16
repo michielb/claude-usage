@@ -69,6 +69,18 @@ echo "    Signed: $(codesign -dv "${BUILD_DIR}/${APP_BUNDLE}" 2>&1 | grep 'Autho
 echo "==> Verifying signature..."
 codesign --verify --strict "${BUILD_DIR}/${APP_BUNDLE}"
 
+# 4b. Notarize and staple the app bundle itself, before it goes into the pkg,
+# so the installed .app carries its own ticket (verifiable offline / if the
+# bundle is moved) — not just the outer .pkg.
+echo "==> Notarizing app bundle..."
+APP_ZIP="${BUILD_DIR}/${APP_NAME}.zip"
+ditto -c -k --keepParent "${BUILD_DIR}/${APP_BUNDLE}" "${APP_ZIP}"
+xcrun notarytool submit "${APP_ZIP}" \
+    --keychain-profile "${NOTARY_PROFILE}" \
+    --wait
+xcrun stapler staple "${BUILD_DIR}/${APP_BUNDLE}"
+rm -f "${APP_ZIP}"
+
 # 5. Build .pkg (component + product for welcome/readme screens)
 echo "==> Building ${PKG_NAME}..."
 
