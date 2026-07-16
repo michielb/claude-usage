@@ -75,11 +75,14 @@ final class FloatingPanel: NSPanel {
 
         contentViewController = NSHostingController(rootView: DetailView(service: service))
 
-        // Position top-right
-        if let screen = NSScreen.main {
-            let x = screen.visibleFrame.maxX - frame.width - 20
-            let y = screen.visibleFrame.maxY - frame.height - 20
-            setFrameOrigin(NSPoint(x: x, y: y))
+        // Pin to the top-left of the primary (menu-bar) screen. NSScreen.main
+        // tracks the key window and is unreliable with multiple displays — it
+        // put the panel on the wrong screen / at the boundary between two
+        // screens, so only a sliver was visible.
+        let screen = NSScreen.screens.first { $0.frame.origin == .zero } ?? NSScreen.main
+        if let screen {
+            setFrameTopLeftPoint(NSPoint(x: screen.visibleFrame.minX + 20,
+                                         y: screen.visibleFrame.maxY - 20))
         }
     }
 

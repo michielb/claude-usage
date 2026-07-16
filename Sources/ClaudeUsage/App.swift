@@ -36,8 +36,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
         NSApp.setActivationPolicy(.regular)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NSApp.setActivationPolicy(.accessory)
+            // Show the HUD only after the initial launch layout has settled.
+            // Creating and animating the panel synchronously inside the first
+            // display cycle races with AppKit's constraint/layout pass and can
+            // throw an uncaught exception during commit (crash on launch).
+            sharedHUD.forceShow()
         }
-        sharedHUD.forceShow()
         observeServiceState()
     }
 
