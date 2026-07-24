@@ -74,16 +74,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     private func showOnboarding() {
         guard onboardingWindow == nil else { return }
 
-        let window = NSWindow(
-            contentViewController: NSHostingController(rootView: OnboardingView(service: sharedService))
-        )
+        let hosting = NSHostingController(rootView: OnboardingView(service: sharedService))
+        let window = NSWindow(contentViewController: hosting)
+        // Freeze the window size once AppKit has sized it to the content. Left
+        // dynamic, the hosting view drives an animated window resize
+        // (NSHostingView.updateAnimatedWindowSize) that can re-enter AppKit's
+        // constraint pass mid-display-cycle and throw an uncaught exception —
+        // the recurring launch crash (SIGABRT/SIGTRAP in the display cycle).
+        // Onboarding's layout is effectively fixed, so freezing costs nothing.
+        hosting.sizingOptions = []
         window.styleMask = [.titled, .closable]
         window.title = "Claude Usage Setup"
         window.level = .floating
         window.center()
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
         onboardingWindow = window
+
+        // Present on the next runloop turn so the window is never ordered in
+        // from inside an in-progress display/commit cycle.
+        DispatchQueue.main.async {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     private func dismissOnboarding() {
