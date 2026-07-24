@@ -54,13 +54,17 @@ final class UsageService {
             .filter { $0.kind == "weekly_scoped" }
             .compactMap { limit in
                 guard let percent = limit.percent else { return nil }
-                let target = paceTarget(resetDate: limit.resetDate, window: week)
+                // Model-scoped weekly limits share the 7-day reset window. When
+                // the model is unused the API returns no reset of its own — fall
+                // back to the 7-day tier's reset instead of showing "—".
+                let resetDate = limit.resetDate ?? usage?.sevenDay?.resetDate
+                let target = paceTarget(resetDate: resetDate, window: week)
                 let name = limit.scope?.model?.displayName ?? "Model"
                 return ModelLimitRow(
                     title: "7-Day \(name)",
                     utilization: percent,
                     target: target,
-                    resetString: formatReset(limit.resetDate),
+                    resetString: formatReset(resetDate),
                     aheadString: aheadString(utilization: percent, target: target, window: week)
                 )
             }
