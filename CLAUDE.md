@@ -1,6 +1,6 @@
 # Claude Usage
 
-Mac menu bar app that tracks Claude API usage within the 5-hour rate limit window.
+Mac menu bar app that tracks Claude rate-limit usage: the 5-hour window, the 7-day window, and model-scoped weekly limits (e.g. Fable).
 
 ## Stack
 - Swift 6 / SwiftUI with MenuBarExtra
@@ -9,11 +9,15 @@ Mac menu bar app that tracks Claude API usage within the 5-hour rate limit windo
 
 ## Architecture
 - `App.swift` — Entry point, MenuBarExtra scene
-- `UsageService.swift` — OAuth token retrieval (macOS Keychain), API polling every 3 min
-- `ProgressBarRenderer.swift` — NSImage-based progress bar for menu bar
-- `MenuBarView.swift` — Menu bar label layout: `52% ====+---- 5h`
-- `DetailView.swift` — Dropdown panel with all usage tiers
+- `UsageService.swift` — OAuth token retrieval (macOS Keychain), API polling every 3 min, service state machine, pace targets
+- `ProgressBarRenderer.swift` — NSImage-based progress bars for menu bar (plus compact "C" mode)
+- `MenuBarView.swift` — Menu bar label layout: `52% ====+---- 5h 62% ====+---- 7d`
+- `DetailView.swift` — Dropdown panel with all usage tiers and controls
+- `FloatingPanel.swift` — Always-on-top HUD panel and its controller
+- `OnboardingView.swift` — First-run window when no credentials are found
+- `AppSettings.swift` — Compact mode setting, auto-enabled on narrow screens
 - `Models.swift` — Codable structs for API response
+- `docs/menubar.png`, `docs/detail.png` — README graphics rendered from the app's own drawing code with mock data; regenerate with `bash scripts/readme-graphics.sh` after visual changes
 
 ## API
 - Endpoint: `GET https://api.anthropic.com/api/oauth/usage`
